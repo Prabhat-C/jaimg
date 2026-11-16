@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JAimg</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* "Grey ramp", shared with JApdf: white page, grey tool tiles stepping light to darker, coral main buttons. */
+  color-scheme:light;
+  --bg:#ffffff; --surface:#ffffff; --raised:#f0f0f0; --line:#d9d9d9; --line-soft:#ececec;
+  --text:#14161c; --muted:#454a57; --faint:#6a7080; --link:#2557b8; --sel-line:#7a7f8c; --sel-bg:rgba(0,0,0,.05);
+  /* buttons: change only --accent to recolour every main button */
+  --accent:#e5604d;
+  --accent-hover:color-mix(in srgb,var(--accent),#000 12%);
+  --accent-ink:#ffffff;
+  --danger:#c62828; --paper:#ffffff;
+  --tile-1:#f1f1f1; --tile-2:#e9e9e9; --tile-3:#e1e1e1; --tile-4:#dadada; --tile-5:#d3d3d3; --tile-6:#cbcbcb;
+  --tile-hover-line:rgba(0,0,0,.35); /* border a tile gets on hover; no colour change */
+  --display:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+.app{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr auto;min-height:100%;transition:padding .35s cubic-bezier(.2,.8,.2,1)}
+.topbar{display:flex;align-items:center;gap:8px;padding:14px max(24px,calc((100% - 1180px)/2 + 28px));border-bottom:1px solid var(--line-soft);background:var(--surface)}
+.brand{display:flex;align-items:baseline;gap:10px;text-decoration:none;color:var(--text)}
+.brand b{font:700 30px/1 var(--display);letter-spacing:-.01em}
+.brand span{font:400 12.5px var(--mono);color:var(--faint)}
+.backlink{margin-left:auto;display:inline-flex;align-items:center;color:var(--text);text-decoration:none;border:1px solid var(--line);background:var(--surface)}
+.backlink:hover{background:var(--raised)}
+.topicon{width:42px;height:42px;padding:0;justify-content:center;border-radius:50%}
+.topicon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.restart{display:none;margin-left:auto;align-items:center;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.restart:hover{background:var(--raised);color:var(--text)}
+body.has-work .restart{display:inline-flex}
+body.has-work .backlink{margin-left:0}
+body.at-home .backlink{display:none}
+.redo{width:40px;height:40px;padding:0!important;justify-content:center;border-radius:50%!important}
+.redo svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.dlg{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(20,22,28,.28)}
+.dlg.on{display:flex}
+.dlg>div{width:min(440px,100%);background:var(--surface);border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:10px}
+.dlg h2{font:600 21px var(--display)}
+.dlg p{color:var(--muted)}
+.dlg .row{display:flex;justify-content:flex-end;gap:8px;margin-top:8px;flex-wrap:wrap}
+.btn.danger-solid{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn.danger-solid:hover:not(:disabled){background:color-mix(in srgb,var(--danger),#000 12%);border-color:color-mix(in srgb,var(--danger),#000 12%)}
+/* home */
+.home{display:none;padding:40px max(24px,calc((100% - 1180px)/2 + 28px)) 80px;flex-direction:column;gap:22px}
+body.at-home .home{display:flex}
+.home h1{font:600 34px/1.15 var(--display);letter-spacing:-.01em;text-wrap:balance}
+.home>p{color:var(--muted);font-size:17px;margin-top:-12px}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.card{display:flex;flex-direction:column;gap:10px;padding:22px;border-radius:16px;background:var(--tile);border:1px solid transparent;text-decoration:none;color:var(--text)}
+.card:hover,.card:focus-visible{border-color:var(--tile-hover-line)}
+.card b{font-size:19px;font-weight:600}
+.card span{color:var(--muted);font-size:15px;line-height:1.45}
+.card .tag{font:400 12.5px var(--mono);color:var(--muted)}
+.card .ic{width:46px;height:46px;padding:10px;border-radius:12px;background:rgba(255,255,255,.85);color:var(--text)}
+.ic{display:inline-flex}.ic svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.cards a:nth-child(1){--tile:var(--tile-1)}.cards a:nth-child(2){--tile:var(--tile-2)}.cards a:nth-child(3){--tile:var(--tile-3)}
+.cards a:nth-child(4){--tile:var(--tile-4)}.cards a:nth-child(5){--tile:var(--tile-5)}.cards a:nth-child(6){--tile:var(--tile-6)}
+.uploadrow{width:100%;text-align:left;padding:14px 18px;border:1px dashed var(--line);border-radius:14px;background:transparent;font-size:16px;color:var(--muted);cursor:pointer;transition:box-shadow .18s,transform .18s}
+.uploadrow:hover,.uploadrow:focus-visible{box-shadow:0 2px 6px rgba(0,0,0,.08),0 8px 20px rgba(0,0,0,.07);transform:translateY(-1px)}
+.uploadrow:active{box-shadow:0 1px 3px rgba(0,0,0,.1);transform:none}
+/* "What next?" tiles: slide in from the right on laptops, up from the bottom on phones */
+.next{position:fixed;z-index:60;top:96px;right:16px;width:320px;max-width:calc(100vw - 32px);visibility:hidden;pointer-events:none;transition:visibility 0s .5s}
+.next.on{visibility:visible;pointer-events:auto;transition:none}
+.nlist{display:flex;flex-direction:column;gap:10px}
+.nrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:#f4f4f4;border:1px solid transparent;text-align:left;cursor:pointer;color:var(--text);font:inherit;
+  box-shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.12);
+  transform:translateX(calc(100% + 40px));opacity:0;transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .3s;transition-delay:calc(var(--i) * 70ms)}
+.next.on .nrow{transform:none;opacity:1}
+.nrow:hover,.nrow:focus-visible{border-color:var(--tile-hover-line)}
+.nrow .ic{flex:0 0 auto;width:40px;height:40px;padding:9px;border-radius:10px;background:rgba(255,255,255,.9)}
+.nrow b{display:block;font-weight:600}
+.nrow small{display:block;color:var(--muted);font-size:14px;line-height:1.35}
+body.next-open .toasts{right:352px}
+body.next-open .app{padding-right:344px}
+/* views */
+main{min-width:0;display:flex;flex-direction:column}
+.view{margin:0 auto;padding:26px 28px 90px;display:none;flex-direction:column;gap:18px;max-width:1180px;width:100%}
+.view.on{display:flex}
+.head{display:flex;flex-direction:column;gap:4px}
+.head h1{font:600 32px/1.15 var(--display);letter-spacing:-.01em;text-wrap:balance}
+.head p{color:var(--muted);max-width:62ch;display:none}
+body.no-doc .head p{display:block}
+body.no-doc .has-doc,body:not(.no-doc) .need-doc{display:none!important}
+.loading{display:none;padding:40px 0;color:var(--muted);font-size:17px}
+body.importing.no-doc .loading{display:block}
+body.importing .need-doc{display:none!important}
+.btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;white-space:nowrap;font-size:15px;font-weight:500}
+.btn:hover:not(:disabled){background:var(--raised)}
+.btn:disabled{display:none!important}
+.btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover:not(:disabled){background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.ghost:hover:not(:disabled){color:var(--text);background:var(--raised)}
+.btn.danger:hover:not(:disabled){color:var(--danger);border-color:color-mix(in srgb,var(--danger) 40%,#fff)}
+.iconbtn{width:64px;height:48px;padding:0!important;justify-content:center}
+.iconbtn svg{width:24px;height:24px;stroke-width:1.9}
+.dlbtn{width:52px;height:44px;padding:0!important;justify-content:center}
+.dlbtn svg{width:22px;height:22px;stroke-width:1.9}
+:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+.bar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.hint{font-size:15px;color:var(--muted)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.panel{background:var(--surface);border:1px solid var(--line-soft);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>label,.lab{font-size:13.5px;color:var(--muted);font-weight:500}
+.field>label .mono{color:var(--text)}
+input[type=text],input[type=number],select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 11px;min-height:38px}
+input[type=text]:focus,input[type=number]:focus,select:focus,textarea:focus{outline:0;border-color:var(--link)}
+input[type=number]{width:104px}
+input[type=range]{accent-color:var(--accent);width:100%}
+input[type=checkbox]{accent-color:var(--accent)}
+input[type=color]{width:38px;height:38px;padding:2px;border:1px solid var(--line);border-radius:7px;background:none;cursor:pointer}
+.check{display:inline-flex;align-items:center;gap:8px;font-size:15px;cursor:pointer}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;padding:2px;background:var(--bg);flex-wrap:wrap;gap:2px;align-self:flex-start}
+.seg button{border:0;background:transparent;padding:5px 12px;border-radius:6px;cursor:pointer;color:var(--muted);font-size:15px;font-weight:500}
+.seg button[aria-pressed=true]{background:var(--raised);color:var(--text)}
+.pair{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.pair .field{flex:0 0 auto}
+.pair .x{padding-bottom:8px;color:var(--faint)}
+/* upload areas */
+.drop{border:1px dashed var(--line);border-radius:14px;padding:44px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;background:var(--surface)}
+.drop h2{font:600 24px var(--display)}
+.drop .fmts{font:400 13px var(--mono);color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.drop .fmts span{border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+body.dragover .drop,body.dragover .grid,body.dragover .stage{outline:2px dashed var(--link);outline-offset:4px}
+/* image grid (Join) */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:14px;user-select:none;-webkit-user-select:none}
+.pg{position:relative;padding:8px;border-radius:10px;border:1px solid transparent;cursor:grab;background:transparent}
+.pg:hover{background:var(--raised)}
+.pg .sheet{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.pg canvas{max-width:100%;max-height:100%;background:var(--paper);border-radius:2px;box-shadow:0 1px 2px rgba(0,0,0,.14),0 4px 12px rgba(0,0,0,.08)}
+.pg .num{position:absolute;left:8px;bottom:8px;min-width:24px;height:22px;padding:0 6px;border-radius:6px;background:rgba(255,255,255,.92);border:1px solid var(--line);font:500 12.5px/20px var(--mono);text-align:center;pointer-events:none}
+.pg .grip{position:absolute;top:4px;left:4px;width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,.92);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;touch-action:none;cursor:grab;color:var(--muted);opacity:0}
+.pg .pgx{position:absolute;top:4px;right:4px;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.95);color:var(--text);font-size:17px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;z-index:2}
+.pg:hover .grip,.pg:hover .pgx,.pg:focus-within .pgx,.pg:focus-visible .grip{opacity:1}
+.pg .pgx:hover{background:#fff;color:var(--danger);border-color:color-mix(in srgb,var(--danger) 40%,#fff)}
+@media (hover:none){.pg .grip,.pg .pgx{opacity:1}}
+.pg.moving{opacity:.35}
+.pg.before::before,.pg.after::after{content:"";position:absolute;top:6px;bottom:6px;width:3px;border-radius:2px;background:var(--text)}
+.pg.before::before{left:-9px}.pg.after::after{right:-9px}
+/* choosing which image a single-image tool works on */
+.picks{display:flex;gap:8px;overflow-x:auto;padding:2px}
+.picks button{flex:0 0 auto;width:64px;height:64px;padding:4px;border-radius:10px;border:1px solid transparent;background:var(--raised);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.picks button:hover{border-color:var(--tile-hover-line)}
+.picks button[aria-pressed=true]{border-color:var(--text);background:var(--surface)}
+.picks canvas{max-width:100%;max-height:100%;border-radius:2px}
+/* settings on the left, image on the right */
+.side{display:grid;grid-template-columns:340px minmax(0,1fr);gap:18px;align-items:start}
+.stagecol{display:flex;flex-direction:column;gap:10px;min-width:0}
+.stage{background:var(--raised);border:1px solid var(--line-soft);border-radius:12px;padding:18px;display:flex;overflow:auto;min-height:160px}
+.wrap{position:relative;line-height:0;margin:auto;flex:0 0 auto;box-shadow:0 2px 6px rgba(0,0,0,.12),0 10px 30px rgba(0,0,0,.1);
+  background:#fff conic-gradient(#e6e6e6 25%,#fff 0 50%,#e6e6e6 0 75%,#fff 0) 0 0/16px 16px}
+.wrap>canvas{display:block;width:100%;height:100%}
+.clip{position:absolute;inset:0;overflow:hidden}
+.info{font:400 13.5px var(--mono);color:var(--muted)}
+/* crop box */
+.crop{position:absolute;box-shadow:0 0 0 9999px rgba(20,22,28,.5);outline:1.5px solid #fff;cursor:move;touch-action:none}
+.crop i{position:absolute;width:14px;height:14px;background:#fff;border:1px solid rgba(0,0,0,.55);border-radius:3px;touch-action:none}
+.crop i::after{content:"";position:absolute;inset:-10px}
+.crop i[data-h=nw]{left:-1px;top:-1px;cursor:nwse-resize}.crop i[data-h=se]{right:-1px;bottom:-1px;cursor:nwse-resize}
+.crop i[data-h=ne]{right:-1px;top:-1px;cursor:nesw-resize}.crop i[data-h=sw]{left:-1px;bottom:-1px;cursor:nesw-resize}
+.crop i[data-h=n]{left:calc(50% - 7px);top:-1px;cursor:ns-resize}.crop i[data-h=s]{left:calc(50% - 7px);bottom:-1px;cursor:ns-resize}
+.crop i[data-h=w]{top:calc(50% - 7px);left:-1px;cursor:ew-resize}.crop i[data-h=e]{top:calc(50% - 7px);right:-1px;cursor:ew-resize}
+/* overlay items */
+.ovi{position:absolute;cursor:move;touch-action:none}
+.ovi canvas{display:block;width:100%;height:100%;pointer-events:none}
+.ovi.sel{outline:1.5px dashed #2557b8;outline-offset:1px}
+.ovi i{display:none;position:absolute;right:-9px;bottom:-9px;width:18px;height:18px;border-radius:50%;background:#fff;border:1.5px solid #2557b8;cursor:nwse-resize;touch-action:none}
+.ovi i::after{content:"";position:absolute;inset:-9px}
+.ovi.sel i{display:block}
+/* result of a tool: file name, size and Download, shown where the action button was */
+.act{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.result{display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--raised)}
+.result .fi{flex:0 0 auto;width:40px;height:40px;padding:9px;border-radius:10px;background:var(--surface);display:inline-flex}
+.result .fi svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.result .rn{flex:1 1 96px;min-width:0}
+.result .rn b{display:block;font-weight:600;overflow-wrap:anywhere}
+.result .rn span{font:400 13.5px var(--mono);color:var(--muted)}
+/* estimate meter (Convert) */
+.meter{display:flex;flex-direction:column;gap:10px}
+.meter .row{display:grid;grid-template-columns:96px minmax(0,1fr) 104px;gap:12px;align-items:center;font-size:14.5px;color:var(--muted)}
+.meter .track{height:10px;border-radius:5px;background:var(--raised);overflow:hidden}
+.meter .fill{height:100%;border-radius:5px;background:#b9bcc2;transition:width .25s}
+.meter .fill.est{background:var(--accent)}
+.meter .val{font:500 15px var(--mono);color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
+.big{font:600 40px/1 var(--display)}
+.big small{font:400 15px var(--mono);color:var(--muted);margin-left:8px}
+/* toasts + busy */
+.toasts{position:fixed;right:18px;bottom:18px;z-index:80;display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 36px))}
+.toast{background:var(--raised);border:1px solid var(--line);border-left:3px solid var(--sel-line);border-radius:8px;padding:10px 12px;font-size:15px;white-space:pre-line;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.toast.bad{border-left-color:var(--danger)}
+.toast button{margin-left:10px;background:none;border:0;padding:0;color:var(--link);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline}
+.busy{position:fixed;inset:0;z-index:70;background:rgba(255,255,255,.55);display:none;align-items:flex-end;justify-content:center;padding:28px}
+.busy.on{display:flex}
+.busy>div{background:var(--raised);border:1px solid var(--line);border-radius:10px;padding:14px 16px;width:min(420px,100%);display:flex;flex-direction:column;gap:10px}
+.busy .track{height:4px;background:var(--bg);border-radius:2px;overflow:hidden}
+.busy .fill{height:100%;background:var(--text);width:0;transition:width .15s}
+.foot{padding:20px max(24px,calc((100% - 1180px)/2 + 28px)) 28px;color:var(--faint);font-size:14px;text-align:center}
+.hide{display:none!important}
+@media (max-width:820px){
+  .next{top:auto;left:16px;right:16px;bottom:16px;width:auto;max-width:none}
+  .nlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .nrow{flex-direction:column;align-items:flex-start;gap:8px;transform:translateY(calc(100% + 60px))}
+  .nrow small{display:none}
+  body.next-open .toasts{right:18px;top:18px;bottom:auto}
+  body.next-open .app{padding-right:0;padding-bottom:62vh}
+  .topbar{padding:12px 16px}
+  .brand span{display:none}
+  .home{padding:24px 16px 60px}
+  .home h1{font-size:27px}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .card{padding:16px;gap:8px}
+  .card span:not(.ic):not(.tag){display:none}
+  .view{padding:18px 16px 90px}
+  .head h1{font-size:26px}
+  .side{grid-template-columns:minmax(0,1fr)}
+  .side .stagecol{order:-1}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+  .meter .row{grid-template-columns:70px minmax(0,1fr) 78px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body class="no-doc">
+<div class="app">
+  <header class="topbar">
+    <a class="brand" href="#home"><b>JAimg</b><span>Just another image app</span></a>
+    <button type="button" class="restart topicon" id="btnRestart" title="Start over" aria-label="Start over"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
+    <a class="backlink topicon" href="#home" title="Home" aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/></svg></a>
+  </header>
+
+  <main>
+    <section class="home" id="v-home" aria-label="All tools">
+      <h1>What do you want to do?</h1>
+      <p>Pick a tool. Your images stay on this device and are never uploaded.</p>
+      <div class="cards" id="cards"></div>
+      <button type="button" class="uploadrow" id="homeUpload">Upload or drop images anywhere on this page to start in Join.</button>
+    </section>
+
+    <!-- JOIN -->
+    <section class="view" id="v-join">
+      <div class="head"><h1>Join images</h1><p>Put several images into one: stacked top to bottom, side by side, or in a grid. Set the order, check the preview, then join.</p></div>
+      <div class="loading">Adding your images…</div>
+      <div class="need-doc drop"><h2>Upload or drop images</h2><button class="btn primary iconbtn" data-upload aria-label="Upload images" title="Upload images"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button><div class="fmts"><span>jpg</span><span>png</span><span>webp</span><span>gif</span><span>bmp</span><span>svg</span><span>heic*</span></div></div>
+      <div class="has-doc" style="display:flex;flex-direction:column;gap:10px">
+        <div class="bar"><div class="grp"><button class="btn" data-upload>Add images</button><button class="btn ghost" id="jReverse">Reverse order</button></div></div>
+        <p class="hint" id="jHint">Drag images to set the order. New images go to the end.</p>
+      </div>
+      <div class="grid has-doc" id="jGrid"></div>
+      <div class="side has-doc">
+        <div class="panel">
+          <div class="field"><span class="lab">Direction</span>
+            <div class="seg" id="jDir" role="group" aria-label="Direction"><button aria-pressed="true" data-v="v">Vertical</button><button aria-pressed="false" data-v="h">Horizontal</button><button aria-pressed="false" data-v="g">Grid</button></div>
+          </div>
+          <div class="field hide" id="jColsF"><label for="jCols">Images per row</label><input id="jCols" type="number" min="1" max="12" step="1" value="2"></div>
+          <div class="field"><span class="lab" id="jFitL">Make all widths match the</span>
+            <div class="seg" id="jFit" role="group" aria-labelledby="jFitL"><button aria-pressed="true" data-v="small">Smallest</button><button aria-pressed="false" data-v="large">Largest</button><button aria-pressed="false" data-v="keep">As they are</button></div>
+          </div>
+          <div class="field hide" id="jAlignF"><span class="lab">Line up</span>
+            <div class="seg" id="jAlign" role="group" aria-label="Line up"><button aria-pressed="false" data-v="0">Left</button><button aria-pressed="true" data-v="0.5">Centre</button><button aria-pressed="false" data-v="1">Right</button></div>
+          </div>
+          <div class="pair">
+            <div class="field"><label for="jGap">Gap <span class="mono">px</span></label><input id="jGap" type="number" min="0" max="2000" step="1" value="0"></div>
+            <div class="field" id="jBgF"><label for="jBg">Background</label><input id="jBg" type="color" value="#ffffff"></div>
+          </div>
+          <div class="act"><button class="btn primary" id="btnJoin">Join</button><div class="result hide" data-result="join"></div></div>
+        </div>
+        <div class="stagecol">
+          <div class="stage" id="jStage"><div class="wrap" id="jWrap"><canvas id="jCv"></canvas></div></div>
+          <div class="bar" style="justify-content:space-between"><p class="info" id="jInfo"></p><button class="btn ghost" id="jZoom">Zoom in</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CROP -->
+    <section class="view" id="v-crop">
+      <div class="head"><h1>Crop</h1><p>Cut an image to a fixed shape such as 1:1 or 16:9, or drag the edges yourself.</p></div>
+      <div class="loading">Adding your images…</div>
+      <div class="need-doc drop"><h2>Upload the image you want to crop</h2><button class="btn primary iconbtn" data-upload aria-label="Upload images" title="Upload images"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button></div>
+      <div class="picks has-doc" data-picks></div>
+      <div class="side has-doc">
+        <div class="panel">
+          <div class="field"><span class="lab">Shape</span>
+            <div class="seg" id="crRatio" role="group" aria-label="Shape"><button aria-pressed="true" data-v="free">Free</button><button aria-pressed="false" data-v="orig">Original</button><button aria-pressed="false" data-v="1:1">1:1</button><button aria-pressed="false" data-v="4:3">4:3</button><button aria-pressed="false" data-v="3:2">3:2</button><button aria-pressed="false" data-v="16:9">16:9</button><button aria-pressed="false" data-v="3:4">3:4</button><button aria-pressed="false" data-v="2:3">2:3</button><button aria-pressed="false" data-v="9:16">9:16</button><button aria-pressed="false" data-v="custom">Custom</button></div>
+          </div>
+          <div class="pair hide" id="crCustomF">
+            <div class="field"><label for="crRw">Ratio width</label><input id="crRw" type="number" min="1" step="any" value="5"></div><span class="x">:</span>
+            <div class="field"><label for="crRh">Ratio height</label><input id="crRh" type="number" min="1" step="any" value="4"></div>
+          </div>
+          <div class="pair">
+            <div class="field"><label for="crW">Width <span class="mono">px</span></label><input id="crW" type="number" min="1" step="1"></div><span class="x">×</span>
+            <div class="field"><label for="crH">Height <span class="mono">px</span></label><input id="crH" type="number" min="1" step="1"></div>
+          </div>
+          <div class="act"><button class="btn primary" id="btnCrop">Crop</button><div class="result hide" data-result="crop"></div></div>
+        </div>
+        <div class="stagecol">
+          <div class="stage" id="crStage"><div class="wrap" id="crWrap"><canvas id="crCv"></canvas><div class="clip"><div class="crop" id="crBox"><i data-h="nw"></i><i data-h="n"></i><i data-h="ne"></i><i data-h="e"></i><i data-h="se"></i><i data-h="s"></i><i data-h="sw"></i><i data-h="w"></i></div></div></div></div>
+          <p class="info" id="crInfo"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESIZE -->
+    <section class="view" id="v-resize">
+      <div class="head"><h1>Resize</h1><p>Change the dimensions in pixels, by percent, or to a print size in mm, cm or inches.</p></div>
+      <div class="loading">Adding your images…</div>
+      <div class="need-doc drop"><h2>Upload the image you want to resize</h2><button class="btn primary iconbtn" data-upload aria-label="Upload images" title="Upload images"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button></div>
+      <div class="picks has-doc" data-picks></div>
+      <div class="side has-doc">
+        <div class="panel">
+          <div class="field"><span class="lab">Set the size by</span>
+            <div class="seg" id="rzBy" role="group" aria-label="Set the size by"><button aria-pressed="true" data-v="px">Pixels</button><button aria-pressed="false" data-v="pct">Percent</button><button aria-pressed="false" data-v="print">Print size</button></div>
+          </div>
+          <div id="rzPxF" style="display:flex;flex-direction:column;gap:14px">
+            <div class="pair">
+              <div class="field"><label for="rzW">Width <span class="mono">px</span></label><input id="rzW" type="number" min="1" step="1"></div><span class="x">×</span>
+              <div class="field"><label for="rzH">Height <span class="mono">px</span></label><input id="rzH" type="number" min="1" step="1"></div>
+            </div>
+          </div>
+          <div class="field hide" id="rzPctF"><label for="rzPct">Scale to <span class="mono" id="rzPctV">100%</span></label><input id="rzPct" type="range" min="1" max="300" value="100"><div class="grp"><input id="rzPctN" type="number" min="1" max="1000" step="1" value="100" aria-label="Percent"><span class="hint">% of the current size</span></div></div>
+          <div class="hide" id="rzPrintF" style="display:flex;flex-direction:column;gap:14px">
+            <div class="seg" id="rzUnit" role="group" aria-label="Unit"><button aria-pressed="true" data-v="mm">mm</button><button aria-pressed="false" data-v="cm">cm</button><button aria-pressed="false" data-v="in">inch</button></div>
+            <div class="pair">
+              <div class="field"><label for="rzPW">Width <span class="mono" data-unit>mm</span></label><input id="rzPW" type="number" min="0" step="any"></div><span class="x">×</span>
+              <div class="field"><label for="rzPH">Height <span class="mono" data-unit>mm</span></label><input id="rzPH" type="number" min="0" step="any"></div>
+            </div>
+            <div class="field"><label for="rzDpi">Print resolution <span class="mono">dpi</span></label><input id="rzDpi" type="number" min="30" max="1200" step="1" value="300"></div>
+          </div>
+          <label class="check" id="rzLockL"><input type="checkbox" id="rzLock" checked>Keep proportions</label>
+          <div class="act"><button class="btn primary" id="btnResize">Resize</button><div class="result hide" data-result="resize"></div></div>
+        </div>
+        <div class="stagecol">
+          <div class="stage" id="rzStage"><div class="wrap" id="rzWrap"><canvas id="rzCv"></canvas></div></div>
+          <p class="info" id="rzInfo"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- EDIT -->
+    <section class="view" id="v-edit">
+      <div class="head"><h1>Edit</h1><p>Rotate, flip, and adjust light and colour. The picture updates as you move the sliders.</p></div>
+      <div class="loading">Adding your images…</div>
+      <div class="need-doc drop"><h2>Upload the image you want to edit</h2><button class="btn primary iconbtn" data-upload aria-label="Upload images" title="Upload images"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button></div>
+      <div class="picks has-doc" data-picks></div>
+      <div class="side has-doc">
+        <div class="panel">
+          <div class="grp"><button class="btn" data-ed="rotl" title="Rotate left">⟲ Rotate</button><button class="btn" data-ed="rotr" title="Rotate right">⟳ Rotate</button><button class="btn" data-ed="fh" title="Flip left to right">⇋ Flip</button><button class="btn" data-ed="fv" title="Flip top to bottom">⇅ Flip</button></div>
+          <div class="field"><label for="edB">Brightness <span class="mono" id="edBV">0</span></label><input id="edB" type="range" min="-100" max="100" value="0" data-k="b"></div>
+          <div class="field"><label for="edC">Contrast <span class="mono" id="edCV">0</span></label><input id="edC" type="range" min="-100" max="100" value="0" data-k="c"></div>
+          <div class="field"><label for="edS">Saturation <span class="mono" id="edSV">0</span></label><input id="edS" type="range" min="-100" max="100" value="0" data-k="s"></div>
+          <div class="field"><label for="edW">Warmth <span class="mono" id="edWV">0</span></label><input id="edW" type="range" min="-100" max="100" value="0" data-k="w"></div>
+          <div class="field"><span class="lab">Look</span>
+            <div class="seg" id="edLook" role="group" aria-label="Look"><button aria-pressed="true" data-v="none">Normal</button><button aria-pressed="false" data-v="bw">Black &amp; white</button><button aria-pressed="false" data-v="sepia">Sepia</button></div>
+          </div>
+          <div class="act"><div class="grp"><button class="btn primary" id="btnEdit">Done</button><button class="btn ghost" id="edReset">Reset</button></div><div class="result hide" data-result="edit"></div></div>
+        </div>
+        <div class="stagecol">
+          <div class="stage" id="edStage"><div class="wrap" id="edWrap"><canvas id="edCv"></canvas></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OVERLAY -->
+    <section class="view" id="v-overlay">
+      <div class="head"><h1>Overlay</h1><p>Paste another image, a logo or text on top of an image, then move and size it where you want it.</p></div>
+      <div class="loading">Adding your images…</div>
+      <div class="need-doc drop"><h2>Upload the image you want to paste onto</h2><button class="btn primary iconbtn" data-upload aria-label="Upload images" title="Upload images"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button></div>
+      <div class="picks has-doc" data-picks></div>
+      <div class="side has-doc">
+        <div class="panel">
+          <div class="grp"><button class="btn" id="ovAddImg">Add image</button><button class="btn" id="ovAddText">Add text</button></div>
+          <p class="hint" id="ovHint">You can also paste an image from the clipboard, or drop one on the picture.</p>
+          <div class="field hide" id="ovTextF"><label for="ovText">Text</label><textarea id="ovText" rows="2" spellcheck="false"></textarea></div>
+          <div class="field hide" id="ovColorF"><label for="ovColor">Text colour</label><input id="ovColor" type="color" value="#ffffff"></div>
+          <div class="field hide" id="ovOpF"><label for="ovOp">Opacity <span class="mono" id="ovOpV">100%</span></label><input id="ovOp" type="range" min="5" max="100" value="100"></div>
+          <div class="act"><div class="grp"><button class="btn danger" id="ovDel" disabled>Delete</button><button class="btn primary" id="btnOverlay">Apply</button></div><div class="result hide" data-result="overlay"></div></div>
+        </div>
+        <div class="stagecol">
+          <div class="stage" id="ovStage"><div class="wrap" id="ovWrap"><canvas id="ovCv"></canvas><div class="clip" id="ovItems"></div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONVERT -->
+    <section class="view" id="v-convert">
+      <div class="head"><h1>Convert</h1><p>Change the format or make the file smaller. The estimate updates as you change settings.</p></div>
+      <div class="loading">Adding your images…</div>
+      <div class="need-doc drop"><h2>Upload the images you want to convert</h2><button class="btn primary iconbtn" data-upload aria-label="Upload images" title="Upload images"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button></div>
+      <div class="side has-doc" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+        <div class="panel">
+          <div class="field"><span class="lab">Format</span>
+            <div class="seg" id="cvFmt" role="group" aria-label="Format"><button aria-pressed="true" data-v="image/jpeg">JPG</button><button aria-pressed="false" data-v="image/png">PNG</button><button aria-pressed="false" data-v="image/webp">WebP</button></div>
+          </div>
+          <div class="field"><span class="lab">Set the size by</span>
+            <div class="seg" id="cvBy" role="group" aria-label="Set the size by"><button aria-pressed="true" data-v="quality">Quality</button><button aria-pressed="false" data-v="size">Final size</button></div>
+          </div>
+          <div class="field" id="cvQF"><label for="cvQ">Quality <span class="mono" id="cvQV">85</span></label><input id="cvQ" type="range" min="10" max="100" value="85"><div class="bar" style="justify-content:space-between"><span class="hint">Smallest file</span><span class="hint">Best quality</span></div></div>
+          <p class="hint hide" id="cvPngNote">PNG keeps every pixel exactly, so it has no quality setting. Choose Final size to shrink it.</p>
+          <div class="field hide" id="cvSizeF"><label for="cvSize" id="cvSizeL">Final size, at most</label><div class="grp"><input id="cvSize" type="number" min="1" step="any" value="200"><select id="cvUnit" aria-label="Unit"><option value="1024">KB</option><option value="1048576">MB</option></select></div></div>
+          <div class="act"><button class="btn primary" id="btnConvert">Convert</button><div class="result hide" data-result="convert"></div></div>
+        </div>
+        <div class="panel" aria-live="polite">
+          <span class="lab">Estimated result</span>
+          <div class="big" id="cvBig">…</div>
+          <div class="meter">
+            <div class="row"><span>Now</span><div class="track"><div class="fill" id="cvBarO" style="width:100%"></div></div><span class="val" id="cvOrig">…</span></div>
+            <div class="row"><span>Estimated</span><div class="track"><div class="fill est" id="cvBarE" style="width:0"></div></div><span class="val" id="cvEst">…</span></div>
+          </div>
+          <p class="hint" id="cvNote"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="foot">© <span id="year">2026</span> Prabhat</footer>
+</div>
+
+<input type="file" id="fileAdd" class="hide" multiple accept="image/*,.heic,.heif">
+<input type="file" id="fileOv" class="hide" multiple accept="image/*,.heic,.heif">
+<nav class="next" id="next" aria-label="What next"><div class="nlist" id="nextList"></div></nav>
+<div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle"><div>
+  <h2 id="dlgTitle"></h2><p id="dlgBody"></p>
+  <div class="row"><button class="btn" id="dlgNo"></button><button class="btn danger-solid" id="dlgYes"></button></div>
+</div></div>
+<div class="busy" id="busy"><div><span id="busyMsg">Working</span><div class="track"><div class="fill" id="busyFill"></div></div></div></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const tick = () => new Promise(r => setTimeout(r, 0));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const TOOLS = ["join", "crop", "resize", "edit", "overlay", "convert"];
+const MAXSIDE = 16000, MAXAREA = 100e6; // canvases larger than this fail in some browsers
+const EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+
+/* One shared set of images. Join and Convert use all of them; the other tools work on the chosen one. */
+const S = { imgs: [], cur: null, ver: 0, savedVer: -1, nextId: 1, importing: 0 };
+const cur = () => S.imgs.find(i => i.id === S.cur) || S.imgs[0] || null;
+const current = () => { const h = location.hash.slice(1); return TOOLS.includes(h) ? h : "home"; };
+
+/* ---------- small ui helpers ---------- */
+function fmtSize(b) {
+  if (b == null || isNaN(b)) return "…";
+  if (b < 1024) return b + " B";
+  if (b < 1048576) return (b / 1024).toFixed(b < 10240 ? 1 : 0) + " KB";
+  return (b / 1048576).toFixed(b < 10485760 ? 2 : 1) + " MB";
+}
+function toast(msg, bad, action) {
+  const t = document.createElement("div");
+  t.className = "toast" + (bad ? " bad" : ""); t.textContent = msg;
+  if (action) { const b = document.createElement("button"); b.textContent = action.label; b.onclick = () => { t.remove(); action.fn(); }; t.append(b); }
+  $("#toasts").append(t); setTimeout(() => t.remove(), action ? 8000 : bad ? 9000 : 4500);
+}
+let busyDepth = 0;
+async function busy(msg, fn) {
+  const set = (m, f) => { if (m) $("#busyMsg").textContent = m; if (f != null) $("#busyFill").style.width = Math.round(clamp(f, 0, 1) * 100) + "%"; };
+  busyDepth++; $("#busy").classList.add("on"); set(msg, 0);
+  try { await tick(); return await fn(async (m, f) => { set(m, f); await tick(); }); }
+  catch (e) { console.error(e); toast(e && e.message ? e.message : String(e), true); }
+  finally { if (--busyDepth === 0) $("#busy").classList.remove("on"); }
+}
+function seg(id, cb) {
+  const root = $(id);
+  root.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    $$("button", root).forEach(x => x.setAttribute("aria-pressed", x === b));
+    cb(b.dataset.v);
+  });
+  const get = () => $('button[aria-pressed="true"]', root).dataset.v;
+  get.set = v => $$("button", root).forEach(x => x.setAttribute("aria-pressed", x.dataset.v === v));
+  return get;
+}
+function mkCanvas(w, h) { const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h)); return c; }
+function ctx2d(c) { const x = c.getContext("2d"); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high"; return x; }
+const canvasBlob = (c, type, q) => new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("Could not encode the image")), type, q));
+const cleanName = s => (s || "image").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").trim().slice(0, 120) || "image";
+const stamp = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); return p(d.getHours()) + "." + p(d.getMinutes()) + " " + d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); };
+// scale in halving steps so large reductions stay sharp
+function scaleCanvas(src, w, h) {
+  w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
+  let c = src;
+  while (c.width / 2 >= w && c.height / 2 >= h) { const n = mkCanvas(c.width / 2, c.height / 2); ctx2d(n).drawImage(c, 0, 0, n.width, n.height); c = n; }
+  const out = mkCanvas(w, h); ctx2d(out).drawImage(c, 0, 0, w, h); return out;
+}
+function thumbOf(im) {
+  if (!im.thumb || im.thumbVer !== im.ver) { const k = Math.min(1, 300 / Math.max(im.cv.width, im.cv.height)); im.thumb = scaleCanvas(im.cv, im.cv.width * k, im.cv.height * k); im.thumbVer = im.ver; }
+  const c = mkCanvas(im.thumb.width, im.thumb.height); c.getContext("2d").drawImage(im.thumb, 0, 0); return c;
+}
+// "1200 × 800 px · 240 KB → 600 × 400 px · about 70 KB": file sizes are worked out a moment after the settings stop changing
+const SZ = { t: {}, token: {} };
+function sizeLine(el, im, before, after, make, tail) {
+  const key = el.id, token = SZ.token[key] = (SZ.token[key] || 0) + 1; clearTimeout(SZ.t[key]);
+  const show = (a, b) => { el.textContent = before + " · " + a + (after ? " → " + after + " · " + b : "") + (tail || ""); };
+  show(im.size == null ? "…" : fmtSize(im.size), "…");
+  SZ.t[key] = setTimeout(async () => {
+    try {
+      const now = await sizeOf(im); if (token !== SZ.token[key]) return;
+      if (!after) { show(fmtSize(now)); return; }
+      const blob = await encode(make(), im.type, 0.92); if (token !== SZ.token[key]) return;
+      show(fmtSize(now), "about " + fmtSize(blob.size));
+    } catch (e) { console.error(e); }
+  }, after ? 300 : 0);
+}
+// size on screen for an image shown in a stage (never enlarged)
+function fitBox(stage, w, h, mode) {
+  const aw = Math.max(120, stage.clientWidth - 38), ah = Math.max(260, Math.round(innerHeight * 0.66));
+  const k = mode === "w" ? Math.min(1, Math.min(aw, 640) / w) : mode === "h" ? Math.min(1, Math.min(ah, 420) / h) : Math.min(1, aw / w, ah / h);
+  return [Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))];
+}
+function showFit(wrap, cv, src, mode) {
+  const [w, h] = fitBox(wrap.parentElement, src.width, src.height, mode);
+  wrap.style.width = w + "px"; wrap.style.height = h + "px";
+  if (cv) { const d = Math.min(2, devicePixelRatio || 1), k = Math.min(1, w * d / src.width); cv.width = Math.max(1, Math.round(src.width * k)); cv.height = Math.max(1, Math.round(src.height * k)); ctx2d(cv).drawImage(src, 0, 0, cv.width, cv.height); }
+  return w / src.width;
+}
+
+/* ---------- downloads ---------- */
+const dlReady = (async () => { try { return window.claude && window.claude.use ? await window.claude.use("downloads") : null; } catch { return null; } })();
+async function saveFile(filename, data) {
+  const blob = data instanceof Blob ? data : new Blob([data]);
+  const dl = await dlReady;
+  if (dl) {
+    try { await dl.save({ filename, data: blob }); toast("Saved " + filename + " · " + fmtSize(blob.size)); return true; }
+    catch (e) {
+      if (e && e.code === "declined") { toast("Download cancelled."); return false; }
+      if (e && e.code === "rate_limited") { toast("Another download prompt is still open. Answer it, then try again.", true); return false; }
+      if (e && e.code === "too_large") { toast("This file is too large to save from here.", true); return false; }
+    }
+  }
+  try {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    toast("Download started: " + filename + " · " + fmtSize(blob.size)); return true;
+  } catch { toast("This view cannot save files. Open the page in claude.ai and try again.", true); return false; }
+}
+
+/* ---------- reading images ---------- */
+function decode(blob) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(blob), el = new Image();
+    el.onload = () => {
+      try {
+        const w = el.naturalWidth || 1024, h = el.naturalHeight || 1024, k = Math.min(1, MAXSIDE / Math.max(w, h), Math.sqrt(MAXAREA / (w * h)));
+        const cv = mkCanvas(w * k, h * k); ctx2d(cv).drawImage(el, 0, 0, cv.width, cv.height); res(cv);
+      } catch (e) { rej(e); } finally { URL.revokeObjectURL(url); }
+    };
+    el.onerror = () => { URL.revokeObjectURL(url); rej(new Error("unreadable")); };
+    el.src = url;
+  });
+}
+const isImage = f => /^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|bmp|svg|heic|heif|avif|tiff?)$/i.test(f.name || "");
+async function readImages(files) {
+  const out = [], bad = [];
+  for (const f of files) {
+    if (!isImage(f)) { bad.push(f.name); continue; }
+    try { out.push({ cv: await decode(f), file: f }); } catch { bad.push(f.name); }
+    await tick();
+  }
+  if (bad.length) toast((bad.length === 1 ? "This file could not be opened as an image: " : "These files could not be opened as images: ") + bad.join(", ") + (bad.some(n => /\.hei[cf]$/i.test(n)) ? "\nHEIC photos open only in browsers that support them, such as Safari." : ""), true);
+  return out;
+}
+async function addFiles(files) {
+  files = [...files]; if (!files.length) return;
+  S.importing++; document.body.classList.add("importing");
+  try {
+    for (const r of await readImages(files)) {
+      const name = r.file.name || "pasted image";
+      S.imgs.push({ id: "i" + S.nextId++, base: cleanName(name.replace(/\.[^.]+$/, "")), type: EXT[r.file.type] ? r.file.type : "image/png", cv: r.cv, ver: 0, size: EXT[r.file.type] ? r.file.size : null });
+    }
+  } finally { if (--S.importing === 0) document.body.classList.remove("importing"); }
+  changed();
+}
+let uploadToJoin = false;
+$("#homeUpload").onclick = () => { uploadToJoin = true; $("#fileAdd").click(); };
+document.addEventListener("click", e => { if (e.target.closest("[data-upload]")) { uploadToJoin = false; $("#fileAdd").click(); } });
+$("#fileAdd").onchange = async e => { const f = [...e.target.files]; e.target.value = ""; await take(f, uploadToJoin); };
+async function take(files, toJoin) {
+  if (!files.length) return;
+  if (current() === "home" || toJoin) { await addFiles(files); if (S.imgs.length && current() === "home") location.hash = "#join"; }
+  else if (current() === "overlay" && S.imgs.length) await ovAddFiles(files);
+  else await addFiles(files);
+}
+let dragDepth = 0;
+const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+addEventListener("dragenter", e => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; document.body.classList.add("dragover"); });
+addEventListener("dragover", e => { if (hasFiles(e)) e.preventDefault(); });
+addEventListener("dragleave", e => { if (!hasFiles(e)) return; if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove("dragover"); } });
+addEventListener("drop", e => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth = 0; document.body.classList.remove("dragover"); take([...e.dataTransfer.files], false); });
+addEventListener("paste", e => {
+  if (e.target.closest && e.target.closest("input,textarea")) return;
+  const f = [...(e.clipboardData ? e.clipboardData.files : [])].filter(isImage); if (!f.length) return;
+  e.preventDefault(); take(f, false);
+});
+
+/* ---------- state changes ---------- */
+function docState() {
+  document.body.classList.toggle("no-doc", !S.imgs.length);
+  document.body.classList.toggle("has-work", S.imgs.length > 0);
+}
+function changed() { S.ver++; if (!cur()) S.cur = null; docState(); sync(); enter(route); }
+function touch(im) { im.ver++; im.size = null; }
+async function sizeOf(im) { if (im.size == null) im.size = (await encode(im.cv, im.type, 0.92)).size; return im.size; }
+async function encode(cv, type, q) {
+  let c = cv;
+  if (type === "image/jpeg") { c = mkCanvas(cv.width, cv.height); const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(cv, 0, 0); }
+  return canvasBlob(c, type, q);
+}
+
+/* ---------- home tiles ---------- */
+const TILES = [
+  ["join", "Join", "Stack images top to bottom, side by side, or in a grid", "vertical · horizontal · grid", '<rect x="5" y="3" width="14" height="8" rx="1.5"/><rect x="5" y="13" width="14" height="8" rx="1.5"/>'],
+  ["crop", "Crop", "Cut to a fixed shape or drag the edges yourself", "1:1 · 4:3 · 16:9 · free", '<path d="M7 2v15h15M2 7h15v15"/>'],
+  ["resize", "Resize", "Change the size in pixels, percent, mm, cm or inches", "px · % · mm · cm · inch", '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 15l6-6M10.5 9H15v4.5"/>'],
+  ["edit", "Edit", "Rotate, flip, and adjust light and colour", "rotate · flip · adjust", '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>'],
+  ["overlay", "Overlay", "Paste an image, a logo or text on top of an image", "image · logo · text", '<rect x="3" y="3" width="13" height="13" rx="2"/><rect x="8" y="8" width="13" height="13" rx="2"/>'],
+  ["convert", "Convert", "Change the format or shrink the file, with the size shown first", "jpg · png · webp · target size", '<path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/>']
+];
+$("#cards").innerHTML = TILES.map(t => '<a class="card" href="#' + t[0] + '"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">' + t[4] + '</svg></span><b>' + t[1] + '</b><span>' + t[2] + '</span><span class="tag">' + t[3] + '</span></a>').join("");
+
+/* ---------- "What next?" tiles ---------- */
+function showNext(from) {
+  const list = $("#nextList"); list.textContent = "";
+  TOOLS.filter(t => t !== from).forEach((id, i) => {
+    const t = TILES.find(x => x[0] === id), b = document.createElement("button");
+    b.type = "button"; b.className = "nrow"; b.style.setProperty("--i", i);
+    b.innerHTML = '<span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">' + t[4] + '</svg></span><span><b></b><small></small></span>';
+    b.querySelector("b").textContent = t[1]; b.querySelector("small").textContent = t[2];
+    b.onclick = () => { hideNext(); location.hash = "#" + id; };
+    list.append(b);
+  });
+  const nav = $("#next"); nav.classList.remove("on"); void nav.offsetWidth; // restart the slide-in
+  nav.classList.add("on"); document.body.classList.add("next-open");
+  setTimeout(refit, 380);
+}
+function hideNext() { if (!$("#next").classList.contains("on")) return; $("#next").classList.remove("on"); document.body.classList.remove("next-open"); setTimeout(refit, 380); }
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#next").classList.contains("on")) hideNext(); });
+document.addEventListener("pointerdown", e => { if ($("#next").classList.contains("on") && !e.target.closest("#next,#busy,.result,.toast")) hideNext(); });
+
+/* ---------- results: do the work, then show the file with a Download button ---------- */
+const RES = {}; // tool -> { name, blob, sig, undo, cv }
+const FILE_IC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5 4.5 4"/></svg>';
+const REDO_IC = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>';
+const curKey = () => { const im = cur(); return im ? im.id + ":" + im.ver : ""; };
+const SIG = {
+  join: () => [S.imgs.map(i => i.id + ":" + i.ver).join(","), jDir(), jFit(), jAlign(), $("#jCols").value, $("#jGap").value, $("#jBg").value].join("|"),
+  crop: () => [curKey(), CR.x, CR.y, CR.w, CR.h].map(v => typeof v === "number" ? Math.round(v) : v).join("|"),
+  resize: () => [curKey(), RZ.w, RZ.h].join("|"),
+  edit: () => [curKey(), JSON.stringify(ED.a)].join("|"),
+  overlay: () => [curKey(), OV.items.length].join("|"),
+  convert: () => [S.ver, cvFmt(), cvBy(), $("#cvQ").value, $("#cvSize").value, $("#cvUnit").value].join("|")
+};
+const actBtn = tool => $({ join: "#btnJoin", crop: "#btnCrop", resize: "#btnResize", edit: "#btnEdit", overlay: "#btnOverlay", convert: "#btnConvert" }[tool]);
+function setResult(tool, name, blob, extra) {
+  RES[tool] = Object.assign({ name, blob, sig: SIG[tool]() }, extra);
+  const box = $('[data-result="' + tool + '"]'); box.textContent = "";
+  const fi = document.createElement("span"); fi.className = "fi"; fi.innerHTML = FILE_IC;
+  const rn = document.createElement("div"); rn.className = "rn";
+  const b = document.createElement("b"); b.textContent = name; const sz = document.createElement("span"); sz.textContent = fmtSize(blob.size);
+  rn.append(b, sz);
+  const dl = document.createElement("button"); dl.className = "btn primary dlbtn"; dl.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>'; dl.title = "Download " + name; dl.setAttribute("aria-label", "Download " + name);
+  dl.onclick = async () => { const r = RES[tool]; if (r && await saveFile(r.name, r.blob)) { r.downloaded = true; S.savedVer = S.ver; } };
+  const undo = extra && extra.undo, again = document.createElement("button");
+  again.className = "btn ghost redo"; again.innerHTML = REDO_IC; again.title = undo ? "Undo and try again" : "Try again with different settings"; again.setAttribute("aria-label", again.title);
+  again.onclick = () => { if (undo) undo(); else clearResult(tool); };
+  box.append(fi, rn, dl, again);
+  box.classList.remove("hide"); actBtn(tool).classList.add("hide");
+  showNext(tool);
+  setTimeout(() => { if (matchMedia("(max-width:820px)").matches) window.scrollTo({ top: box.getBoundingClientRect().top + scrollY - 140, behavior: "smooth" }); else box.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 400);
+}
+function clearResult(tool) { delete RES[tool]; const box = $('[data-result="' + tool + '"]'); box.classList.add("hide"); box.textContent = ""; actBtn(tool).classList.remove("hide"); }
+function sync() { for (const t in RES) { let same = false; try { same = RES[t].sig === SIG[t](); } catch {} if (!same) clearResult(t); } }
+// Crop, Resize, Edit and Overlay change the working image, so the next tool continues from the result
+async function applyTo(tool, newCv, suffix) {
+  const im = cur(), before = { cv: im.cv, size: im.size };
+  im.cv = newCv; touch(im); S.ver++; docState(); enter(route);
+  const blob = await encode(im.cv, im.type, 0.92);
+  setResult(tool, im.base + suffix + "." + EXT[im.type], blob, { undo: () => { im.cv = before.cv; touch(im); im.size = before.size; hideNext(); changed(); } });
+}
+
+/* ---------- screens ---------- */
+function renderPicks(tool) {
+  const box = $("#v-" + tool + " [data-picks]"); if (!box) return;
+  box.textContent = ""; box.classList.toggle("hide", S.imgs.length < 2);
+  if (S.imgs.length < 2) return;
+  const c = cur();
+  S.imgs.forEach((im, i) => {
+    const b = document.createElement("button"); b.type = "button"; b.title = im.base; b.setAttribute("aria-label", "Image " + (i + 1) + ", " + im.base); b.setAttribute("aria-pressed", im === c);
+    b.append(thumbOf(im)); b.onclick = () => { S.cur = im.id; sync(); enter(route); }; box.append(b);
+  });
+}
+const RENDER = { home: () => {}, join: renderJoin, crop: renderCrop, resize: renderResize, edit: renderEdit, overlay: renderOverlay, convert: renderConvert };
+function enter(tool) {
+  document.body.classList.toggle("at-home", tool === "home");
+  $$(".view").forEach(v => v.classList.toggle("on", v.id === "v-" + tool));
+  document.title = tool === "home" ? "JAimg" : TILES.find(t => t[0] === tool)[1] + " · JAimg";
+  if (tool !== "home") renderPicks(tool);
+  try { RENDER[tool](); } catch (e) { console.error(e); }
+}
+let refitT = 0;
+function refit() { clearTimeout(refitT); refitT = setTimeout(() => { if (S.imgs.length && route !== "home" && route !== "convert") { try { RENDER[route](); } catch (e) { console.error(e); } } }, 60); }
+addEventListener("resize", refit);
+let mainW = 0; new ResizeObserver(() => { const w = $("main").clientWidth; if (w !== mainW) { mainW = w; refit(); } }).observe($("main")); // the page narrows when the "What next?" tiles slide in
+
+/* ---------- starting over, and not losing work by accident ---------- */
+const unsaved = () => S.imgs.length > 0 && S.savedVer !== S.ver;
+function ask(title, body, yes, no) {
+  return new Promise(res => {
+    const d = $("#dlg"); $("#dlgTitle").textContent = title; $("#dlgBody").textContent = body; $("#dlgYes").textContent = yes; $("#dlgNo").textContent = no;
+    const done = v => { d.classList.remove("on"); document.removeEventListener("keydown", key, true); res(v); };
+    const key = e => { if (e.key === "Escape") { e.stopPropagation(); done(false); } };
+    $("#dlgYes").onclick = () => done(true); $("#dlgNo").onclick = () => done(false); d.onclick = e => { if (e.target === d) done(false); };
+    document.addEventListener("keydown", key, true); d.classList.add("on"); $("#dlgNo").focus();
+  });
+}
+function resetAll() {
+  S.imgs = []; S.cur = null; S.savedVer = -1; OV.items = []; OV.sel = null;
+  for (const t of Object.keys(RES)) clearResult(t);
+  hideNext(); changed();
+}
+$("#btnRestart").onclick = async () => {
+  if (unsaved() && !await ask("Start over?", "This clears your current images. You haven't downloaded your work yet.", "Start over", "Cancel")) return;
+  resetAll(); window.scrollTo(0, 0);
+};
+let route = current(), skipGuard = false;
+addEventListener("hashchange", async () => {
+  const to = current(), from = route; if (to === from) return;
+  if (skipGuard) { skipGuard = false; return; }
+  hideNext();
+  if (to === "home" && S.imgs.length) {
+    if (unsaved() && !await ask("Leave and start fresh?", "Going back to all tools clears your current images, and you haven't downloaded your work yet.", "Discard and leave", "Keep working")) { skipGuard = true; location.hash = "#" + from; return; }
+    route = to; resetAll();
+  } else {
+    if (from === "join") commitJoin();
+    route = to; enter(to);
+  }
+  window.scrollTo(0, 0);
+});
+
+/* ================= JOIN ================= */
+const jDir = seg("#jDir", () => { jUi(); renderJoin(); });
+const jFit = seg("#jFit", () => { jUi(); renderJoin(); });
+const jAlign = seg("#jAlign", () => renderJoin());
+["#jCols", "#jGap", "#jBg"].forEach(id => $(id).addEventListener("input", () => renderJoin()));
+function jUi() {
+  const d = jDir(), keep = jFit() === "keep";
+  $("#jColsF").classList.toggle("hide", d !== "g");
+  $("#jFitL").textContent = d === "h" ? "Make all heights match the" : "Make all widths match the";
+  $("#jAlignF").classList.toggle("hide", !keep);
+  const names = d === "h" ? ["Top", "Middle", "Bottom"] : ["Left", "Centre", "Right"];
+  $$("#jAlign button").forEach((b, i) => b.textContent = names[i]);
+}
+// where every image goes in the joined picture
+function joinLayout() {
+  const list = S.imgs, dir = jDir(), fit = jFit(), al = +jAlign(), gap = clamp(Math.round(+$("#jGap").value || 0), 0, 2000);
+  const items = []; let W = 0, H = 0;
+  if (dir === "g") {
+    const cols = clamp(Math.round(+$("#jCols").value || 1), 1, Math.max(1, list.length));
+    const ws = list.map(i => i.cv.width), cw = fit === "small" ? Math.min(...ws) : Math.max(...ws);
+    let y = 0;
+    for (let r = 0; r * cols < list.length; r++) {
+      const row = list.slice(r * cols, r * cols + cols).map(im => { const k = fit === "keep" ? 1 : cw / im.cv.width; return { im, w: im.cv.width * k, h: im.cv.height * k }; });
+      const rh = Math.max(...row.map(c => c.h));
+      row.forEach((c, i) => items.push({ im: c.im, x: i * (cw + gap) + (cw - c.w) * (fit === "keep" ? al : 0.5), y: y + (rh - c.h) / 2, w: c.w, h: c.h }));
+      y += rh + gap;
+    }
+    W = cols * cw + (cols - 1) * gap; H = y - gap;
+  } else {
+    const v = dir === "v", across = im => v ? im.cv.width : im.cv.height, all = list.map(across);
+    const target = fit === "small" ? Math.min(...all) : fit === "large" ? Math.max(...all) : null, span = target || Math.max(...all);
+    let pos = 0;
+    for (const im of list) {
+      const k = target ? target / across(im) : 1, w = im.cv.width * k, h = im.cv.height * k;
+      items.push(v ? { im, x: (span - w) * al, y: pos, w, h } : { im, x: pos, y: (span - h) * al, w, h });
+      pos += (v ? h : w) + gap;
+    }
+    W = v ? span : pos - gap; H = v ? pos - gap : span;
+  }
+  const k = Math.min(1, MAXSIDE / W, MAXSIDE / H, Math.sqrt(MAXAREA / (W * H)));
+  return { W: Math.max(1, Math.round(W * k)), H: Math.max(1, Math.round(H * k)), k, items, plain: !gap && fit !== "keep" && dir !== "g" };
+}
+function drawJoin(cv, L, scale) {
+  cv.width = Math.max(1, Math.round(L.W * scale)); cv.height = Math.max(1, Math.round(L.H * scale));
+  const x = ctx2d(cv), s = L.k * scale;
+  x.fillStyle = $("#jBg").value; x.fillRect(0, 0, cv.width, cv.height);
+  for (const it of L.items) { // snap edges to whole pixels so no hairline of background shows between images
+    const x0 = Math.round(it.x * s), y0 = Math.round(it.y * s), x1 = Math.round((it.x + it.w) * s), y1 = Math.round((it.y + it.h) * s);
+    x.drawImage(it.im.cv, x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0));
+  }
+}
+let jZoomed = false; // the preview shows the whole joined image unless you zoom in
+$("#jZoom").onclick = () => { jZoomed = !jZoomed; renderJoin(); };
+function renderJoin() {
+  const n = S.imgs.length; renderJGrid(); jUi();
+  $("#btnJoin").disabled = n < 2; $("#jReverse").disabled = n < 2;
+  $("#jHint").textContent = n < 2 ? "Add at least one more image to join." : "Drag images to set the order. New images go to the end.";
+  if (!n) { sync(); return; }
+  const L = joinLayout(), dir = jDir(), stage = $("#jStage");
+  const whole = fitBox(stage, L.W, L.H, ""), near = fitBox(stage, L.W, L.H, dir === "h" ? "h" : "w"), canZoom = near[0] > whole[0] * 1.15;
+  if (!canZoom) jZoomed = false;
+  const [w, h] = jZoomed ? near : whole;
+  $("#jZoom").disabled = !canZoom; $("#jZoom").textContent = jZoomed ? "Show whole image" : "Zoom in";
+  stage.style.maxHeight = jZoomed && dir !== "h" ? "70vh" : "";
+  $("#jWrap").style.width = w + "px"; $("#jWrap").style.height = h + "px";
+  const d = Math.min(2, devicePixelRatio || 1); let s = Math.min(1, w * d / L.W); s = Math.min(s, 12000 / Math.max(L.W * s, L.H * s, 1) * s);
+  drawJoin($("#jCv"), L, s);
+  $("#jInfo").textContent = n + (n === 1 ? " image" : " images") + " · " + L.W + " × " + L.H + " px" + (L.k < 1 ? " · scaled down to stay within the largest size browsers can handle" : "");
+  sync();
+}
+function renderJGrid() {
+  const g = $("#jGrid"); g.textContent = "";
+  S.imgs.forEach((im, i) => {
+    const d = document.createElement("div"); d.className = "pg"; d.dataset.id = im.id; d.tabIndex = 0;
+    d.title = (i + 1) + " · " + im.base + " · " + im.cv.width + " × " + im.cv.height + " px"; d.setAttribute("aria-label", "Image " + (i + 1) + ", " + im.base + ". Arrow keys move it.");
+    const sheet = document.createElement("div"); sheet.className = "sheet"; sheet.append(thumbOf(im));
+    const num = document.createElement("span"); num.className = "num"; num.textContent = i + 1;
+    const grip = document.createElement("span"); grip.className = "grip"; grip.title = "Drag to move"; grip.textContent = "⠿";
+    const x = document.createElement("button"); x.type = "button"; x.className = "pgx"; x.textContent = "×"; x.title = "Remove image " + (i + 1); x.setAttribute("aria-label", x.title);
+    x.onclick = ev => { ev.stopPropagation(); removeImg(im.id); };
+    d.append(sheet, num, grip, x); g.append(d);
+  });
+}
+function removeImg(id) {
+  const before = S.imgs.slice(), i = before.findIndex(m => m.id === id);
+  S.imgs = before.filter(m => m.id !== id); changed();
+  toast("Removed image " + (i + 1) + ".", false, { label: "Undo", fn: () => { S.imgs = before; changed(); } });
+}
+function moveImg(id, to) { const from = S.imgs.findIndex(m => m.id === id); if (from < 0) return; const [m] = S.imgs.splice(from, 1); S.imgs.splice(clamp(to, 0, S.imgs.length), 0, m); changed(); }
+$("#jReverse").onclick = () => { S.imgs.reverse(); changed(); };
+$("#jGrid").addEventListener("keydown", e => {
+  const pg = e.target.closest(".pg"); if (!pg || e.target !== pg) return;
+  const i = S.imgs.findIndex(m => m.id === pg.dataset.id), d = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : 0;
+  if (d && i + d >= 0 && i + d < S.imgs.length) { e.preventDefault(); moveImg(pg.dataset.id, i + d); const el = $('#jGrid .pg[data-id="' + pg.dataset.id + '"]'); if (el) el.focus(); }
+  else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeImg(pg.dataset.id); }
+});
+$("#jGrid").addEventListener("pointerdown", e => {
+  const pg = e.target.closest(".pg"); if (!pg || e.target.closest(".pgx") || e.button > 0) return;
+  if (e.pointerType !== "mouse" && !e.target.closest(".grip")) return; // on touch, drag by the grip so the page can still scroll
+  const id = pg.dataset.id, sx = e.clientX, sy = e.clientY; let moved = false, tgt = null, after = false;
+  const marks = () => $$("#jGrid .pg").forEach(p => p.classList.remove("before", "after"));
+  const mv = ev => {
+    if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+    moved = true; pg.classList.add("moving"); marks(); tgt = null;
+    const el = document.elementFromPoint(ev.clientX, ev.clientY), o = el && el.closest("#jGrid .pg");
+    if (o && o !== pg) { const r = o.getBoundingClientRect(); after = ev.clientX > r.left + r.width / 2; o.classList.add(after ? "after" : "before"); tgt = o.dataset.id; }
+  };
+  const up = () => {
+    removeEventListener("pointermove", mv); removeEventListener("pointerup", up); removeEventListener("pointercancel", up);
+    pg.classList.remove("moving"); marks();
+    if (moved && tgt) { const m = S.imgs.find(q => q.id === id); S.imgs = S.imgs.filter(q => q !== m); S.imgs.splice(S.imgs.findIndex(q => q.id === tgt) + (after ? 1 : 0), 0, m); changed(); }
+  };
+  addEventListener("pointermove", mv); addEventListener("pointerup", up); addEventListener("pointercancel", up);
+  if (e.pointerType === "mouse") e.preventDefault();
+});
+$("#btnJoin").onclick = () => busy("Joining images", async () => {
+  const L = joinLayout(), cv = mkCanvas(1, 1); drawJoin(cv, L, 1);
+  const type = S.imgs.every(i => i.type === "image/jpeg") ? "image/jpeg" : "image/png", base = "Joined " + stamp();
+  const blob = await encode(cv, type, 0.92);
+  setResult("join", base + "." + EXT[type], blob, { cv, base, type });
+});
+// after joining, the joined picture becomes the image the other tools work on
+function commitJoin() {
+  const r = RES.join; if (!r) return;
+  clearResult("join");
+  S.imgs = [{ id: "i" + S.nextId++, base: r.base, type: r.type, cv: r.cv, ver: 0, size: r.blob.size }]; S.cur = null; S.ver++;
+  if (r.downloaded) S.savedVer = S.ver;
+  docState();
+}
+
+/* ================= CROP ================= */
+const CR = { key: "", x: 0, y: 0, w: 1, h: 1 };
+const crRatio = seg("#crRatio", v => { $("#crCustomF").classList.toggle("hide", v !== "custom"); crApplyRatio(); crDraw(); });
+function crR() {
+  const v = crRatio(), im = cur();
+  if (v === "free") return 0;
+  if (v === "orig") return im.cv.width / im.cv.height;
+  if (v === "custom") { const a = +$("#crRw").value, b = +$("#crRh").value; return a > 0 && b > 0 ? a / b : 0; }
+  const [a, b] = v.split(":").map(Number); return a / b;
+}
+function crApplyRatio() { // largest box of the chosen shape, centred on the current one
+  const im = cur(), R = crR(); if (!im || !R) return;
+  const W = im.cv.width, H = im.cv.height, cx = CR.x + CR.w / 2, cy = CR.y + CR.h / 2;
+  let w = Math.min(W, H * R), h = w / R;
+  CR.x = clamp(cx - w / 2, 0, W - w); CR.y = clamp(cy - h / 2, 0, H - h); CR.w = w; CR.h = h;
+}
+["#crRw", "#crRh"].forEach(id => $(id).addEventListener("input", () => { crApplyRatio(); crDraw(); }));
+$("#crW").addEventListener("change", () => crSetSize(+$("#crW").value, 0));
+$("#crH").addEventListener("change", () => crSetSize(0, +$("#crH").value));
+function crSetSize(w, h) {
+  const im = cur(), W = im.cv.width, H = im.cv.height, R = crR();
+  if (w) { w = clamp(w, 1, W); h = R ? w / R : CR.h; if (h > H) { h = H; w = h * R; } }
+  else { h = clamp(h || 1, 1, H); w = R ? h * R : CR.w; if (w > W) { w = W; h = w / R; } }
+  CR.w = w; CR.h = h; CR.x = clamp(CR.x, 0, W - w); CR.y = clamp(CR.y, 0, H - h); crDraw();
+}
+const crRect = () => { const im = cur(), x = Math.round(CR.x), y = Math.round(CR.y); return { x, y, w: clamp(Math.round(CR.w), 1, im.cv.width - x), h: clamp(Math.round(CR.h), 1, im.cv.height - y) }; };
+function renderCrop() {
+  const im = cur(); if (!im) return;
+  if (CR.key !== curKey()) { CR.key = curKey(); CR.x = 0; CR.y = 0; CR.w = im.cv.width; CR.h = im.cv.height; crApplyRatio(); }
+  showFit($("#crWrap"), $("#crCv"), im.cv); crDraw();
+}
+function crDraw() {
+  const im = cur(); if (!im) return; const W = im.cv.width, H = im.cv.height, b = $("#crBox").style, r = crRect();
+  b.left = CR.x / W * 100 + "%"; b.top = CR.y / H * 100 + "%"; b.width = CR.w / W * 100 + "%"; b.height = CR.h / H * 100 + "%";
+  if (document.activeElement !== $("#crW")) $("#crW").value = r.w; if (document.activeElement !== $("#crH")) $("#crH").value = r.h;
+  const full = r.w === W && r.h === H;
+  $("#btnCrop").disabled = full;
+  sizeLine($("#crInfo"), im, W + " × " + H + " px", full ? "" : r.w + " × " + r.h + " px", () => { const c = mkCanvas(r.w, r.h); c.getContext("2d").drawImage(im.cv, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h); return c; });
+  sync();
+}
+$("#crBox").addEventListener("pointerdown", e => {
+  const im = cur(); if (!im || e.button > 0) return; e.preventDefault();
+  const mode = e.target.dataset.h || "move", W = im.cv.width, H = im.cv.height, k = W / $("#crWrap").clientWidth, s = { x: CR.x, y: CR.y, w: CR.w, h: CR.h }, sx = e.clientX, sy = e.clientY, R = crR(), MIN = Math.min(8, W, H);
+  const wr = $("#crWrap").getBoundingClientRect();
+  const mv = ev => {
+    if (mode === "move") { CR.x = clamp(s.x + (ev.clientX - sx) * k, 0, W - s.w); CR.y = clamp(s.y + (ev.clientY - sy) * k, 0, H - s.h); crDraw(); return; }
+    const px = clamp((ev.clientX - wr.left) * k, 0, W), py = clamp((ev.clientY - wr.top) * k, 0, H);
+    let l = s.x, t = s.y, r = s.x + s.w, b = s.y + s.h; const has = c => mode.includes(c);
+    if (has("w")) l = Math.min(px, r - MIN); if (has("e")) r = Math.max(px, l + MIN);
+    if (has("n")) t = Math.min(py, b - MIN); if (has("s")) b = Math.max(py, t + MIN);
+    if (R) {
+      if (mode.length === 2) { // corner: the opposite corner stays put
+        const ax = has("w") ? s.x + s.w : s.x, ay = has("n") ? s.y + s.h : s.y;
+        let w = r - l, h = b - t; if (w / h > R) h = w / R; else w = h * R;
+        w = Math.min(w, has("w") ? ax : W - ax, (has("n") ? ay : H - ay) * R); h = w / R;
+        l = has("w") ? ax - w : ax; t = has("n") ? ay - h : ay; r = l + w; b = t + h;
+      } else if (mode === "e" || mode === "w") { // side: grows evenly up and down
+        const cy = s.y + s.h / 2, w = Math.min(r - l, 2 * Math.min(cy, H - cy) * R), h = w / R;
+        if (mode === "w") l = r - w; else r = l + w; t = cy - h / 2; b = cy + h / 2;
+      } else {
+        const cx = s.x + s.w / 2, h = Math.min(b - t, 2 * Math.min(cx, W - cx) / R), w = h * R;
+        if (mode === "n") t = b - h; else b = t + h; l = cx - w / 2; r = cx + w / 2;
+      }
+    }
+    CR.x = l; CR.y = t; CR.w = r - l; CR.h = b - t; crDraw();
+  };
+  const up = () => { removeEventListener("pointermove", mv); removeEventListener("pointerup", up); removeEventListener("pointercancel", up); };
+  addEventListener("pointermove", mv); addEventListener("pointerup", up); addEventListener("pointercancel", up);
+});
+$("#btnCrop").onclick = () => busy("Cropping", async () => {
+  const im = cur(), r = crRect(), cv = mkCanvas(r.w, r.h);
+  cv.getContext("2d").drawImage(im.cv, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+  await applyTo("crop", cv, "-cropped");
+});
+
+/* ================= RESIZE ================= */
+const RZ = { key: "", w: 1, h: 1 };
+const UNIT = { mm: 25.4, cm: 2.54, in: 1 };
+const rzBy = seg("#rzBy", v => { $("#rzPxF").classList.toggle("hide", v !== "px"); $("#rzPctF").classList.toggle("hide", v !== "pct"); $("#rzPrintF").classList.toggle("hide", v !== "print"); $("#rzLockL").classList.toggle("hide", v === "pct"); if (v === "pct") rzPct(+$("#rzPctN").value); else rzShow(); });
+const rzUnit = seg("#rzUnit", v => { $$("#v-resize [data-unit]").forEach(s => s.textContent = v === "in" ? "inch" : v); rzShow(); });
+const rzDpi = () => clamp(+$("#rzDpi").value || 300, 30, 1200);
+const rzMax = v => clamp(Math.round(v) || 1, 1, MAXSIDE);
+function rzSet(w, h) { // w or h is the side that was typed; the other follows when proportions are kept
+  const im = cur(), R = im.cv.width / im.cv.height, lock = $("#rzLock").checked;
+  if (w != null) { RZ.w = rzMax(w); if (lock) RZ.h = rzMax(RZ.w / R); }
+  if (h != null) { RZ.h = rzMax(h); if (lock) RZ.w = rzMax(RZ.h * R); }
+  rzShow();
+}
+function rzPct(p) { const im = cur(); if (!im) return; p = clamp(p || 100, 1, 1000); RZ.w = rzMax(im.cv.width * p / 100); RZ.h = rzMax(im.cv.height * p / 100); $("#rzPctV").textContent = p + "%"; if (document.activeElement !== $("#rzPctN")) $("#rzPctN").value = p; if (document.activeElement !== $("#rzPct")) $("#rzPct").value = Math.min(300, p); rzShow(); }
+function rzShow() {
+  const im = cur(); if (!im) return; const act = document.activeElement, u = UNIT[rzUnit()], dpi = rzDpi(), dp = rzUnit() === "mm" ? 1 : 2;
+  const put = (id, v) => { if (act !== $(id)) $(id).value = v; };
+  put("#rzW", RZ.w); put("#rzH", RZ.h); put("#rzPW", +(RZ.w / dpi * u).toFixed(dp)); put("#rzPH", +(RZ.h / dpi * u).toFixed(dp));
+  const same = RZ.w === im.cv.width && RZ.h === im.cv.height;
+  $("#btnResize").disabled = same;
+  const w = RZ.w, h = RZ.h;
+  sizeLine($("#rzInfo"), im, im.cv.width + " × " + im.cv.height + " px", same ? "" : w + " × " + h + " px", () => scaleCanvas(im.cv, w, h), rzBy() === "print" ? " · " + dpi + " dpi" : "");
+  sync();
+}
+$("#rzW").addEventListener("input", e => rzSet(+e.target.value, null));
+$("#rzH").addEventListener("input", e => rzSet(null, +e.target.value));
+$("#rzPW").addEventListener("input", e => rzSet(+e.target.value / UNIT[rzUnit()] * rzDpi(), null));
+$("#rzPH").addEventListener("input", e => rzSet(null, +e.target.value / UNIT[rzUnit()] * rzDpi()));
+$("#rzDpi").addEventListener("input", () => { const u = UNIT[rzUnit()]; const w = +$("#rzPW").value, h = +$("#rzPH").value; if (w > 0 && h > 0) { RZ.w = rzMax(w / u * rzDpi()); RZ.h = rzMax(h / u * rzDpi()); } rzShow(); }); // same paper size, more or fewer pixels
+$("#rzLock").addEventListener("change", () => { if ($("#rzLock").checked) rzSet(RZ.w, null); });
+$("#rzPct").addEventListener("input", e => rzPct(+e.target.value));
+$("#rzPctN").addEventListener("input", e => rzPct(+e.target.value));
+$$("#v-resize input[type=number]").forEach(i => i.addEventListener("blur", () => setTimeout(() => { if (cur()) rzShow(); }, 0)));
+function renderResize() {
+  const im = cur(); if (!im) return;
+  if (RZ.key !== curKey()) { RZ.key = curKey(); RZ.w = im.cv.width; RZ.h = im.cv.height; $("#rzPct").value = 100; $("#rzPctN").value = 100; $("#rzPctV").textContent = "100%"; }
+  showFit($("#rzWrap"), $("#rzCv"), im.cv); rzShow();
+}
+$("#btnResize").onclick = () => busy("Resizing", async () => { const w = RZ.w, h = RZ.h; await applyTo("resize", scaleCanvas(cur().cv, w, h), "-" + w + "x" + h); });
+
+/* ================= EDIT ================= */
+const ED0 = () => ({ rot: 0, fh: false, fv: false, b: 0, c: 0, s: 0, w: 0, look: "none" });
+const ED = { key: "", a: ED0(), base: null };
+const edLook = seg("#edLook", v => { ED.a.look = v; edDraw(); });
+const edChanged = () => JSON.stringify(ED.a) !== JSON.stringify(ED0());
+function turned(src, a) {
+  if (!a.rot && !a.fh && !a.fv) return src;
+  const sw = src.width, sh = src.height, q = a.rot % 2, cv = mkCanvas(q ? sh : sw, q ? sw : sh), x = ctx2d(cv);
+  x.translate(cv.width / 2, cv.height / 2); x.rotate(a.rot * Math.PI / 2); x.scale(a.fh ? -1 : 1, a.fv ? -1 : 1); x.drawImage(src, -sw / 2, -sh / 2); return cv;
+}
+// done pixel by pixel, because canvas filters are missing in some browsers
+function adjusted(src, a) {
+  const cv = mkCanvas(src.width, src.height), x = cv.getContext("2d"); x.drawImage(src, 0, 0);
+  if (!a.b && !a.c && !a.s && !a.w && a.look === "none") return cv;
+  const d = x.getImageData(0, 0, cv.width, cv.height), p = d.data, c2 = a.c * 1.2, cf = (259 * (c2 + 255)) / (255 * (259 - c2));
+  const lut = shift => { const t = new Uint8ClampedArray(256); for (let i = 0; i < 256; i++) t[i] = cf * (i - 128) + 128 + a.b * 1.1 + shift; return t; };
+  const LR = lut(a.w * 0.45), LG = lut(0), LB = lut(-a.w * 0.45), sat = 1 + a.s / 100, look = a.look, plain = sat === 1 && look === "none";
+  for (let i = 0; i < p.length; i += 4) {
+    let r = LR[p[i]], g = LG[p[i + 1]], b = LB[p[i + 2]];
+    if (!plain) {
+      const l = 0.299 * r + 0.587 * g + 0.114 * b;
+      if (look === "bw") r = g = b = l;
+      else { r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat; }
+      if (look === "sepia") { const m = 0.299 * r + 0.587 * g + 0.114 * b; r = m * 1.07 + 22; g = m * 0.95 + 8; b = m * 0.74 - 6; }
+    }
+    p[i] = r; p[i + 1] = g; p[i + 2] = b;
+  }
+  x.putImageData(d, 0, 0); return cv;
+}
+function renderEdit() {
+  const im = cur(); if (!im) return;
+  if (ED.key !== curKey()) { ED.key = curKey(); ED.a = ED0(); const k = Math.min(1, 1100 / Math.max(im.cv.width, im.cv.height)); ED.base = scaleCanvas(im.cv, im.cv.width * k, im.cv.height * k); }
+  edDraw();
+}
+function edDraw() {
+  const a = ED.a;
+  $$("#v-edit input[type=range]").forEach(r => { r.value = a[r.dataset.k]; $("#" + r.id + "V").textContent = (a[r.dataset.k] > 0 ? "+" : "") + a[r.dataset.k]; });
+  edLook.set(a.look);
+  const out = adjusted(turned(ED.base, a), a);
+  showFit($("#edWrap"), $("#edCv"), out);
+  $("#btnEdit").disabled = $("#edReset").disabled = !edChanged();
+  sync();
+}
+$$("#v-edit input[type=range]").forEach(r => r.addEventListener("input", () => { ED.a[r.dataset.k] = +r.value; edDraw(); }));
+$("#v-edit").addEventListener("click", e => {
+  const b = e.target.closest("[data-ed]"); if (!b) return; const a = ED.a, odd = a.rot % 2 === 1;
+  if (b.dataset.ed === "rotl") a.rot = (a.rot + 3) % 4; else if (b.dataset.ed === "rotr") a.rot = (a.rot + 1) % 4;
+  else if ((b.dataset.ed === "fh") !== odd) a.fh = !a.fh; else a.fv = !a.fv; // flips are in screen terms, whatever the rotation
+  edDraw();
+});
+$("#edReset").onclick = () => { ED.a = ED0(); edDraw(); };
+$("#btnEdit").onclick = () => busy("Applying your edits", async () => { await applyTo("edit", adjusted(turned(cur().cv, ED.a), ED.a), "-edited"); });
+
+/* ================= OVERLAY ================= */
+const OV = { key: "", items: [], sel: null, nextId: 1 };
+const ovSel = () => OV.items.find(i => i.id === OV.sel) || null;
+function textCanvas(text, color) {
+  const lines = (text || " ").split("\n"), F = 96, font = "600 " + F + "px Figtree, Helvetica, Arial, sans-serif", m = mkCanvas(1, 1).getContext("2d"); m.font = font;
+  const w = Math.max(...lines.map(l => m.measureText(l || " ").width)), cv = mkCanvas(Math.min(8000, w + F * 0.3), lines.length * F * 1.2 + F * 0.1), x = cv.getContext("2d");
+  x.font = font; x.fillStyle = color; x.textBaseline = "middle";
+  lines.forEach((l, i) => x.fillText(l, F * 0.15, F * 0.05 + (i + 0.5) * F * 1.2));
+  return cv;
+}
+function ovAdd(cv, extra) {
+  const im = cur(), W = im.cv.width, H = im.cv.height, k = Math.min(W * (extra ? 0.6 : 0.4) / cv.width, H * 0.5 / cv.height), w = cv.width * k, h = cv.height * k, n = OV.items.length % 5;
+  const it = Object.assign({ id: OV.nextId++, cv, x: (W - w) / 2 + n * W * 0.03, y: (H - h) / 2 + n * H * 0.03, w, h, op: 1 }, extra);
+  OV.items.push(it); OV.sel = it.id; ovDraw();
+}
+async function ovAddFiles(files) { for (const r of await busy("Adding", () => readImages(files)) || []) ovAdd(r.cv); }
+$("#ovAddImg").onclick = () => $("#fileOv").click();
+$("#fileOv").onchange = async e => { const f = [...e.target.files]; e.target.value = ""; await ovAddFiles(f); };
+$("#ovAddText").onclick = () => { const color = $("#ovColor").value; ovAdd(textCanvas("Your text", color), { text: "Your text", color }); $("#ovText").focus(); $("#ovText").select(); };
+$("#ovText").addEventListener("input", e => { const it = ovSel(); if (!it || it.text == null) return; const lineH = it.h / it.text.split("\n").length; it.text = e.target.value; it.cv = textCanvas(it.text, it.color); it.h = lineH * it.text.split("\n").length; it.w = it.h * it.cv.width / it.cv.height; ovDraw(); });
+$("#ovColor").addEventListener("input", e => { const it = ovSel(); if (!it || it.text == null) return; it.color = e.target.value; it.cv = textCanvas(it.text, it.color); ovDraw(); });
+$("#ovOp").addEventListener("input", e => { const it = ovSel(); if (!it) return; it.op = +e.target.value / 100; ovDraw(); });
+$("#ovDel").onclick = () => { OV.items = OV.items.filter(i => i.id !== OV.sel); OV.sel = null; ovDraw(); };
+function renderOverlay() {
+  const im = cur(); if (!im) return;
+  if (OV.key !== curKey()) { OV.key = curKey(); OV.items = []; OV.sel = null; }
+  showFit($("#ovWrap"), $("#ovCv"), im.cv); ovDraw();
+}
+function ovDraw() {
+  const im = cur(); if (!im) return; const W = im.cv.width, H = im.cv.height, box = $("#ovItems"), act = document.activeElement; box.textContent = "";
+  for (const it of OV.items) {
+    const d = document.createElement("div"); d.className = "ovi" + (it.id === OV.sel ? " sel" : ""); d.dataset.id = it.id;
+    d.style.cssText = "left:" + it.x / W * 100 + "%;top:" + it.y / H * 100 + "%;width:" + it.w / W * 100 + "%;height:" + it.h / H * 100 + "%";
+    const c = mkCanvas(Math.min(it.cv.width, 1200), Math.min(it.cv.width, 1200) * it.cv.height / it.cv.width); ctx2d(c).drawImage(it.cv, 0, 0, c.width, c.height); c.style.opacity = it.op;
+    d.append(c, document.createElement("i")); box.append(d);
+  }
+  const it = ovSel(), isText = !!it && it.text != null;
+  $("#ovTextF").classList.toggle("hide", !isText); $("#ovColorF").classList.toggle("hide", !isText); $("#ovOpF").classList.toggle("hide", !it);
+  $("#ovHint").classList.toggle("hide", OV.items.length > 0);
+  $("#ovDel").disabled = !it;
+  if (it) { $("#ovOp").value = Math.round(it.op * 100); $("#ovOpV").textContent = Math.round(it.op * 100) + "%"; if (isText) { if (act !== $("#ovText")) $("#ovText").value = it.text; $("#ovColor").value = it.color; } }
+  $("#btnOverlay").disabled = !OV.items.length;
+  sync();
+}
+$("#ovWrap").addEventListener("pointerdown", e => {
+  const el = e.target.closest(".ovi"), im = cur(); if (!im || e.button > 0) return;
+  if (!el) { if (OV.sel != null) { OV.sel = null; ovDraw(); } return; } // clicking empty space clears the selection
+  e.preventDefault();
+  const id = +el.dataset.id, resize = e.target.tagName === "I"; OV.sel = id; ovDraw();
+  const it = ovSel(), k = im.cv.width / $("#ovWrap").clientWidth, s = { x: it.x, y: it.y, w: it.w, h: it.h }, sx = e.clientX, sy = e.clientY;
+  const node = () => $('#ovItems .ovi[data-id="' + id + '"]');
+  const mv = ev => {
+    const dx = (ev.clientX - sx) * k, dy = (ev.clientY - sy) * k;
+    if (resize) { const f = Math.max(12 / s.w, 12 / s.h, Math.max((s.w + dx) / s.w, (s.h + dy) / s.h)); it.w = s.w * f; it.h = s.h * f; }
+    else { it.x = clamp(s.x + dx, -s.w * 0.9, im.cv.width - s.w * 0.1); it.y = clamp(s.y + dy, -s.h * 0.9, im.cv.height - s.h * 0.1); }
+    const n = node(); if (n) { n.style.left = it.x / im.cv.width * 100 + "%"; n.style.top = it.y / im.cv.height * 100 + "%"; n.style.width = it.w / im.cv.width * 100 + "%"; n.style.height = it.h / im.cv.height * 100 + "%"; }
+  };
+  const up = () => { removeEventListener("pointermove", mv); removeEventListener("pointerup", up); removeEventListener("pointercancel", up); };
+  addEventListener("pointermove", mv); addEventListener("pointerup", up); addEventListener("pointercancel", up);
+});
+addEventListener("keydown", e => { if (route === "overlay" && ovSel() && (e.key === "Delete" || e.key === "Backspace") && !e.target.closest("input,textarea")) { e.preventDefault(); $("#ovDel").click(); } });
+$("#btnOverlay").onclick = () => busy("Applying", async () => {
+  const im = cur(), cv = mkCanvas(im.cv.width, im.cv.height), x = ctx2d(cv); x.drawImage(im.cv, 0, 0);
+  for (const it of OV.items) { x.globalAlpha = it.op; x.drawImage(it.cv, it.x, it.y, it.w, it.h); }
+  x.globalAlpha = 1; OV.items = []; OV.sel = null;
+  await applyTo("overlay", cv, "-overlay");
+});
+
+/* ================= CONVERT ================= */
+const CV = { token: 0, timer: 0 };
+const cvFmt = seg("#cvFmt", () => { cvUi(); queueEstimate(); });
+const cvBy = seg("#cvBy", () => { cvUi(); queueEstimate(); });
+if (!mkCanvas(1, 1).toDataURL("image/webp").startsWith("data:image/webp")) $('#cvFmt [data-v="image/webp"]').remove(); // this browser cannot write WebP
+function cvUi() {
+  const png = cvFmt() === "image/png", size = cvBy() === "size";
+  $("#cvQF").classList.toggle("hide", size || png); $("#cvPngNote").classList.toggle("hide", size || !png); $("#cvSizeF").classList.toggle("hide", !size);
+  $("#cvSizeL").textContent = S.imgs.length > 1 ? "Final size of each image, at most" : "Final size, at most";
+}
+const cvTarget = () => cvBy() === "size" ? Math.max(1024, (+$("#cvSize").value || 0) * +$("#cvUnit").value) : null;
+// returns { blob, w, h }: best quality that fits the target, scaling the picture down only when quality alone is not enough
+async function cvEncode(im, type, target) {
+  if (target == null) return { blob: await encode(im.cv, type, type === "image/png" ? undefined : +$("#cvQ").value / 100), w: im.cv.width, h: im.cv.height };
+  let scale = 1, best = null, c = im.cv;
+  for (let round = 0; round < 8; round++) {
+    c = scale < 1 ? scaleCanvas(im.cv, im.cv.width * scale, im.cv.height * scale) : im.cv;
+    if (type === "image/png") best = await encode(c, type);
+    else {
+      let lo = 0.4, hi = 0.95; best = await encode(c, type, hi);
+      if (best.size > target) {
+        best = await encode(c, type, lo);
+        if (best.size <= target) for (let i = 0; i < 6; i++) { const m = (lo + hi) / 2, b = await encode(c, type, m); if (b.size <= target) { best = b; lo = m; } else hi = m; }
+      }
+    }
+    if (best.size <= target || c.width < 24 || c.height < 24) break;
+    scale *= clamp(Math.sqrt(target / best.size) * 0.95, 0.3, 0.9);
+  }
+  return { blob: best, w: c.width, h: c.height };
+}
+function queueEstimate() { clearTimeout(CV.timer); sync(); CV.timer = setTimeout(runEstimate, 250); }
+async function runEstimate() {
+  if (!S.imgs.length || route !== "convert") return;
+  const token = ++CV.token, type = cvFmt(), target = cvTarget();
+  $("#cvBig").textContent = "…"; $("#cvEst").textContent = "…"; $("#cvNote").textContent = "";
+  try {
+    let orig = 0, est = 0, shrunk = 0, over = 0, last = null;
+    for (const im of S.imgs) {
+      orig += await sizeOf(im); const r = await cvEncode(im, type, target); if (token !== CV.token) return;
+      est += r.blob.size; if (r.w < im.cv.width) shrunk++; if (target != null && r.blob.size > target) over++; last = r;
+    }
+    const pct = Math.round((1 - est / orig) * 100);
+    $("#cvBig").innerHTML = ""; $("#cvBig").append(fmtSize(est)); const sm = document.createElement("small"); sm.textContent = pct > 0 ? pct + "% smaller" : pct < 0 ? -pct + "% larger" : "same size"; $("#cvBig").append(sm);
+    $("#cvOrig").textContent = fmtSize(orig); $("#cvEst").textContent = fmtSize(est);
+    const m = Math.max(orig, est); $("#cvBarO").style.width = orig / m * 100 + "%"; $("#cvBarE").style.width = est / m * 100 + "%";
+    const one = S.imgs.length === 1, notes = [];
+    if (shrunk) notes.push(one ? "To reach this size the picture is also scaled down to " + last.w + " × " + last.h + " px." : shrunk + " of " + S.imgs.length + " images are also scaled down to reach this size.");
+    if (over) notes.push("This size cannot be reached. The result is the smallest possible.");
+    if (!one) notes.push(S.imgs.length + " images, downloaded together as one ZIP.");
+    $("#cvNote").textContent = notes.join(" ");
+  } catch (e) { console.error(e); $("#cvNote").textContent = "Could not estimate the size."; }
+}
+["#cvQ", "#cvSize", "#cvUnit"].forEach(id => $(id).addEventListener("input", () => { $("#cvQV").textContent = $("#cvQ").value; queueEstimate(); }));
+function renderConvert() { if (!S.imgs.length) return; cvUi(); queueEstimate(); }
+$("#btnConvert").onclick = () => busy("Converting", async prog => {
+  clearTimeout(CV.timer); CV.token++;
+  const type = cvFmt(), target = cvTarget(), out = [];
+  for (let i = 0; i < S.imgs.length; i++) { await prog("Converting " + (i + 1) + " of " + S.imgs.length, i / S.imgs.length); out.push({ name: S.imgs[i].base + "." + EXT[type], blob: (await cvEncode(S.imgs[i], type, target)).blob }); }
+  if (out.length === 1) { setResult("convert", out[0].name, out[0].blob); return; }
+  if (!window.JSZip) throw new Error("The ZIP library could not be loaded. Check your internet connection, or convert one image at a time.");
+  const zip = new JSZip(), used = new Set();
+  for (const f of out) { let n = f.name, k = 2; while (used.has(n.toLowerCase())) n = f.name.replace(/(\.[^.]+)$/, " (" + k++ + ")$1"); used.add(n.toLowerCase()); zip.file(n, f.blob); }
+  setResult("convert", "Images " + stamp() + ".zip", await zip.generateAsync({ type: "blob" }));
+});
+
+$("#year").textContent = new Date().getFullYear();
+docState(); jUi(); cvUi(); enter(route);
+</script>
+</body>
+</html>
